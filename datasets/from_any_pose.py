@@ -1,3 +1,4 @@
+import logging
 import os
 import pickle
 from dataclasses import dataclass, MISSING
@@ -16,6 +17,9 @@ from utils.defaults import DEFAULTS
 from utils.mesh_creation import add_coarse_edges, obj2template
 import warnings
 
+
+logger = logging.getLogger(__name__)
+
 @dataclass
 class Config:
     pose_sequence_path: str = MISSING  #  Path to the pose sequence relative to $HOOD_DATA. Can be either sequence of SMLP parameters of a sequence of meshes depending on the value of pose_sequence_type
@@ -25,6 +29,7 @@ class Config:
     obstacle_dict_file: Optional[str] = None  # Path to the file with auxiliary data for obstacles relative to $HOOD_DATA/aux_data/
     n_coarse_levels: int = 4  # Number of coarse levels with long-range edges
     separate_arms: bool = False  # Whether to separate the arms from the rest of the body (to avoid body self-intersections)
+    pinned_verts: bool = False  # Whether to use pinned vertices from garment template
 
 
 
@@ -51,6 +56,47 @@ def create_loader(mcfg: Config):
 
     elif garment_template_path.endswith('.pkl'):
         garment_dict = pickle_load(garment_template_path)
+
+        # Validate pkl template structure
+        if 'vertices' not in garment_dict:
+            raise ValueError(
+                f"Invalid pkl template at {garment_template_path}: missing 'vertices' key. "
+                f"Found keys: {list(garment_dict.keys())}. "
+                f"The template must be a single-layer dict with 'vertices', 'faces', etc. "
+                f"Please use prepare_pinned_template.py with --single-layer to generate a proper template."
+            )
+
+        # Log template info
+        num_verts = len(garment_dict['vertices'])
+        num_faces = len(garment_dict.get('faces', []))
+        logger.debug(
+            "Loaded pkl template: %s vertices, %s faces",
+            num_verts,
+            num_faces,
+        )
+
+        if 'node_type' in garment_dict:
+            node_type = garment_dict['node_type']
+            if len(node_type) != num_verts:
+                logger.debug(
+                    "node_type length (%s) does not match vertices (%s)",
+                    len(node_type),
+                    num_verts,
+                )
+            else:
+                from utils.common import NodeType
+                num_pinned = np.sum(node_type == NodeType.HANDLE)
+                if num_pinned > 0:
+                    logger.debug(
+                        "Template contains %s pinned vertices (%.1f%%)",
+                        int(num_pinned),
+                        100 * num_pinned / num_verts,
+                    )
+                    if not mcfg.pinned_verts:
+                        logger.debug(
+                            "Template has pinned vertices but pinned_verts=False. Set pinned_verts=True to use them."
+                        )
+
     else:
         raise ValueError(f'Unknown garment template format: {mcfg.garment_template_path}, has to be .obj or .pkl')
 
@@ -154,7 +200,16 @@ class GarmentBuilder:
         self.vertex_builder = VertexBuilder(mcfg)
 
     def add_verts(self, sample: HeteroData, garment_dict: dict) -> HeteroData:
+        # Validate garment_dict structure
+        assert 'vertices' in garment_dict, (
+            f"Invalid garment template: missing 'vertices' key. "
+            f"Found keys: {list(garment_dict.keys())}. "
+            f"Please use prepare_pinned_template.py with --single-layer to generate a proper template."
+        )
+
         pos = garment_dict['vertices']
+        assert pos is not None and len(pos) > 0, "Garment vertices are empty or None"
+
         pos = torch.FloatTensor(pos)[None,].permute(1, 0, 2)
 
         sample['cloth'].prev_pos = pos
@@ -181,7 +236,48 @@ class GarmentBuilder:
         """
 
         V = sample['cloth'].pos.shape[0]
-        vertex_type = np.zeros((V, 1)).astype(np.int64)
+
+        # Check if we should use pinned vertices and if node_type exists in garment_dict
+        if self.mcfg.pinned_verts:
+            if 'node_type' not in garment_dict:
+                logger.debug(
+                    "pinned_verts requested but garment template has no 'node_type'; treating all vertices as free"
+                )
+                vertex_type = np.zeros((V, 1)).astype(np.int64)
+            else:
+                vertex_type = garment_dict['node_type'].astype(np.int64)
+
+                # Validate and fix shape
+                if vertex_type.shape[0] != V:
+                    logger.error(
+                        "node_type shape mismatch: expected %s vertices, got %s; treating all vertices as free",
+                        V,
+                        vertex_type.shape[0],
+                    )
+                    vertex_type = np.zeros((V, 1)).astype(np.int64)
+                elif len(vertex_type.shape) == 1:
+                    vertex_type = vertex_type.reshape(-1, 1)
+
+                # Log info about pinned vertices
+                n_pinned = np.sum(vertex_type == NodeType.HANDLE)
+                if n_pinned > 0:
+                    logger.debug(
+                        "Using %s pinned vertices from garment template (%.1f%%)",
+                        int(n_pinned),
+                        100 * n_pinned / V,
+                    )
+                else:
+                    logger.debug("pinned_verts requested but template has no pinned vertices (node_type=0)")
+        else:
+            # pinned_verts=False, all vertices are free
+            vertex_type = np.zeros((V, 1)).astype(np.int64)
+            if 'node_type' in garment_dict:
+                n_pinned = np.sum(garment_dict['node_type'] == NodeType.HANDLE)
+                if n_pinned > 0:
+                    logger.debug(
+                        "Template has %s pinned vertices but pinned_verts=False (not using them)",
+                        int(n_pinned),
+                    )
 
         sample['cloth'].vertex_type = torch.tensor(vertex_type)
         return sample

@@ -1,4 +1,5 @@
 import importlib
+import logging
 from dataclasses import dataclass
 from typing import Optional
 
@@ -12,6 +13,9 @@ from utils.cloth_and_material import VertexNormalsPYG
 from utils.common import NodeType, gather, add_field_to_pyg_batch, \
     make_pervertex_tensor_from_lens
 from utils.connectivity import compute_connectivity_pt
+
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -81,7 +85,21 @@ class Model(nn.Module):
 
         if len(labels.shape) == 2 and labels.shape[1] == 1:
             labels = labels[:, 0]
-        labels_onehot = torch.nn.functional.one_hot(labels, N).t().float()
+        # Ensure labels and one-hot are on the same device/dtype as emb_matrix to avoid device mismatch
+        labels = labels.to(dtype=torch.long, device=emb_matrix.device)
+        labels_onehot = torch.nn.functional.one_hot(labels, N).t().to(dtype=emb_matrix.dtype, device=emb_matrix.device)
+        # Debug print once to ensure devices match
+        try:
+            if getattr(self, 'i', 0) < 1:
+                logger.debug(
+                    "postcvpr.embed emb_matrix.device=%s, onehot.device=%s, dtype=%s",
+                    emb_matrix.device,
+                    labels_onehot.device,
+                    emb_matrix.dtype,
+                )
+                self.i = getattr(self, 'i', 0) + 1
+        except Exception as exc:
+            logger.debug("postcvpr.embed debug logging failed: %s", exc)
         embedding = emb_matrix @ labels_onehot
         embedding = embedding.t()
         return embedding

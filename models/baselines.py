@@ -80,7 +80,14 @@ class Model(nn.Module):
 
         if len(labels.shape) == 2 and labels.shape[1] == 1:
             labels = labels[:, 0]
-        labels_onehot = torch.nn.functional.one_hot(labels, N).t().float()
+        labels = labels.to(dtype=torch.long, device=emb_matrix.device)
+        labels_onehot = torch.nn.functional.one_hot(labels, N).t().to(dtype=emb_matrix.dtype, device=emb_matrix.device)
+        try:
+            if getattr(self, 'i', 0) < 1:
+                print(f"[DBG] baselines.embed emb_matrix.device={emb_matrix.device}, onehot.device={labels_onehot.device}, dtype={emb_matrix.dtype}")
+                self.i = getattr(self, 'i', 0) + 1
+        except Exception:
+            pass
         embedding = emb_matrix @ labels_onehot
         embedding = embedding.t()
         return embedding

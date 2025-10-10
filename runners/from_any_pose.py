@@ -1,3 +1,4 @@
+import logging
 import os
 import time
 from collections import defaultdict
@@ -22,6 +23,9 @@ from runners.utils.material import RandomMaterial
 from utils.cloth_and_material import FaceNormals, ClothMatAug
 from utils.common import move2device, save_checkpoint, add_field_to_pyg_batch
 from utils.defaults import DEFAULTS
+
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -143,6 +147,18 @@ class Runner(nn.Module):
             state = self.collect_sample_wholeseq(sequence, i, prev_out_dict)
 
             if i == 0:
+                try:
+                    cp = state['cloth'].pos.device
+                    op = state['obstacle'].pos.device
+                    pdev = next(self.model.parameters()).device
+                    logger.debug(
+                        "rollout step0 devices: cloth.pos=%s, obstacle.pos=%s, model.param=%s",
+                        cp,
+                        op,
+                        pdev,
+                    )
+                except Exception as e:
+                    logger.debug("rollout device check failed: %s", e)
                 state = self.collision_solver.solve(state)
 
             with torch.no_grad():

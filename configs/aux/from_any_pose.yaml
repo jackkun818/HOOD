@@ -26,6 +26,7 @@ dataloader:
       pose_sequence_path: 'fromanypose/mesh_sequence.pkl'
       garment_template_path: 'fromanypose/tshirt.pkl'
       n_coarse_levels: 3
+      pinned_verts: False  # Enable to use pinned vertices from garment template
 
 criterions:
   postcvpr.mataug.stretching_energy:

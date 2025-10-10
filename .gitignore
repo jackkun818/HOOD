@@ -162,3 +162,6 @@ cython_debug/
 #
 Debug.ipynb
 *_local*
+
+# Project data directory not tracked (added)
+hood_data/
