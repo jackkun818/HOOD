@@ -133,7 +133,7 @@ dependencies:
   - nss=3.89.1
   - numexpr=2.8.4
   - numpy-base=1.23.5
-  - nvidiacub=1.10.0
+  # - nvidiacub=1.10.0
   - omegaconf=2.3.0
   - openh264=2.1.1
   - openssl=1.1.1t
@@ -161,7 +161,7 @@ dependencies:
   - python=3.10.9
   - python-dateutil=2.8.2
   - python_abi=3.10
-  - pytorch-cuda=11.7
+  # - pytorch-cuda=11.7
   - pytorch-mutex=1.0
   - pytz=2023.3
   - pyyaml=6.0
@@ -198,7 +198,7 @@ dependencies:
       - aiohappyeyeballs==2.6.1
       - aiohttp==3.12.15
       - aiosignal==1.4.0
-      - aitviewer==1.9.0
+      - aitviewer==1.13.0
       - async-timeout==5.0.1
       - attrs==25.3.0
       - chumpy==0.70
@@ -251,14 +251,14 @@ dependencies:
       - smplx==0.1.28
       - sympy==1.13.3
       - tifffile==2023.4.12
-      - torch==2.8.0+cu128
+      - --extra-index-url https://download.pytorch.org/whl/cu128
+      - torch==2.8.0
+      - torchaudio==2.8.0
+      - torchvision==0.23.0
       - torch-geometric==2.3.1
-      - torchaudio==2.8.0+cu128
-      - torchvision==0.23.0+cu128
       - trimesh==3.21.7
       - triton==3.4.0
       - typing-extensions==4.15.0
       - websockets==11.0.3
       - wheel==0.45.1
       - yarl==1.20.1
-prefix: /home/jack/miniconda3/envs/hood
