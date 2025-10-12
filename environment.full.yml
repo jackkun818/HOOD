@@ -242,7 +242,6 @@ dependencies:
       - pyqt5-qt5==5.15.2
       - pyqt5-sip==12.11.0
       - pyrr==0.10.3
-      - pytorch3d==0.7.4
       - pywavelets==1.4.1
       - roma==1.3.2
       - scikit-image==0.19.3

@@ -26,7 +26,7 @@ import torch
 def parse_args():
     p = argparse.ArgumentParser()
     p.add_argument("--config", type=Path, required=True, help="Path to HOOD config YAML")
-    p.add_argument("--checkpoint", type=Path, required=True, help="Path to HOOD checkpoint .pth")
+    p.add_argument("--checkpoint", type=Path, required=False, default=None, help="Path to HOOD checkpoint .pth (optional; resolves from $HOOD_DATA/trained_models if omitted)")
     p.add_argument("--body-sequence", type=Path, required=True, help="Path to body sequence (.npz or .pkl)")
     p.add_argument("--garment", type=Path, required=True, help="Path to garment (.obj or .pkl)")
     p.add_argument("--output-dir", type=Path, required=True, help="Directory to save garment_sequence.npz")
@@ -61,6 +61,25 @@ def main():
     from utils.arguments import load_params, create_modules, create_dataloader_module
     from utils.validation import load_runner_from_checkpoint
     from utils.defaults import DEFAULTS
+
+    # Resolve checkpoint if not provided
+    if args.checkpoint is None:
+        trained_models = Path(DEFAULTS.data_root) / 'trained_models'
+        preferred = trained_models / 'postcvpr.pth'
+        if preferred.exists():
+            args.checkpoint = preferred
+        elif trained_models.exists():
+            pths = sorted(trained_models.glob('*.pth'))
+            if len(pths) == 1:
+                args.checkpoint = pths[0]
+            elif len(pths) > 1:
+                names = ', '.join(p.name for p in pths[:10])
+                more = '...' if len(pths) > 10 else ''
+                print(f"[ERROR] Multiple checkpoints found under {trained_models}. Please specify --checkpoint. Candidates: {names}{more}", file=sys.stderr)
+                sys.exit(2)
+        if args.checkpoint is None:
+            print(f"[ERROR] No --checkpoint provided and none found under {trained_models}", file=sys.stderr)
+            sys.exit(2)
 
     # Prepare from_any_pose paths under HOOD_DATA
     fap_dir = Path(DEFAULTS.data_root) / 'fromanypose'

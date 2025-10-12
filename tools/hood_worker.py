@@ -51,7 +51,50 @@ class HOODInferenceWorker:
         self.initialized = False
         self.fap_dir = None  # fromanypose directory
 
-    def initialize(self, config_path: str, checkpoint_path: str, device: str = 'cuda') -> bool:
+    def _resolve_checkpoint(self, checkpoint_path: Optional[str]) -> Path:
+        """Resolve checkpoint path according to policy:
+        - If an explicit path is provided, use it as-is (relative to CWD if not absolute).
+          Error if not found.
+        - If no path provided, attempt to derive from $HOOD_DATA/trained_models/.
+          Prefer 'postcvpr.pth'; otherwise, if exactly one .pth exists, use it; else error.
+        """
+        # Worker runs with CWD at HOOD_PROJECT
+        cwd = Path.cwd()
+
+        if checkpoint_path:
+            cand = Path(checkpoint_path)
+            if not cand.is_absolute():
+                cand = cwd / cand
+            if not cand.exists():
+                raise FileNotFoundError(f"Checkpoint not found: {cand}")
+            return cand
+
+        # No explicit checkpoint provided: derive from HOOD_DATA
+        from utils.defaults import DEFAULTS
+        trained_models = Path(DEFAULTS.data_root) / 'trained_models'
+        preferred = trained_models / 'postcvpr.pth'
+        tried = [preferred]
+        if preferred.exists():
+            return preferred
+
+        if trained_models.exists():
+            pths = sorted(trained_models.glob('*.pth'))
+            if len(pths) == 1:
+                return pths[0]
+            elif len(pths) > 1:
+                names = ', '.join(p.name for p in pths[:10])
+                more = '...' if len(pths) > 10 else ''
+                raise RuntimeError(
+                    f"Multiple checkpoints found under {trained_models}. "
+                    f"Please specify one explicitly. Candidates: {names}{more}"
+                )
+
+        raise FileNotFoundError(
+            f"No checkpoint provided and none found under {trained_models}. "
+            f"Tried: {', '.join(str(p) for p in tried)}"
+        )
+
+    def initialize(self, config_path: str, checkpoint_path: Optional[str], device: str = 'cuda') -> bool:
         """Initialize model and runner with config and checkpoint."""
         try:
             logger.debug(
@@ -60,7 +103,9 @@ class HOODInferenceWorker:
 
             # Store paths
             self.config_path = Path(config_path)
-            self.checkpoint_path = Path(checkpoint_path)
+            # Resolve checkpoint path per policy
+            resolved_ckpt = self._resolve_checkpoint(checkpoint_path)
+            self.checkpoint_path = resolved_ckpt
             self.device = device
 
             # Get HOOD project root
@@ -80,7 +125,7 @@ class HOODInferenceWorker:
             self.conf.device = device
 
             # Load runner from checkpoint
-            _, self.runner = load_runner_from_checkpoint(str(checkpoint_path), self.modules, self.conf)
+            _, self.runner = load_runner_from_checkpoint(str(self.checkpoint_path), self.modules, self.conf)
 
             # Move runner to device
             device_obj = torch.device(device)
@@ -330,7 +375,7 @@ def main():
             if action == 'initialize':
                 success = worker.initialize(
                     config_path=command['config_path'],
-                    checkpoint_path=command['checkpoint_path'],
+                    checkpoint_path=command.get('checkpoint_path'),
                     device=command.get('device', 'cuda')
                 )
                 response = {
@@ -341,11 +386,11 @@ def main():
 
             elif action == 'infer':
                 if not worker.initialized:
-                    # Auto-initialize if needed
-                    if 'config_path' in command and 'checkpoint_path' in command:
+                    # Auto-initialize if needed (checkpoint may be omitted; worker will resolve from HOOD_DATA)
+                    if 'config_path' in command:
                         worker.initialize(
                             config_path=command['config_path'],
-                            checkpoint_path=command['checkpoint_path'],
+                            checkpoint_path=command.get('checkpoint_path'),
                             device=command.get('device', 'cuda')
                         )
 
