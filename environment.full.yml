@@ -1,8 +1,8 @@
 name: hood
 channels:
+  - nvidia
   - conda-forge
   - defaults
-  - nvidia
   - pytorch
   - bottler
 dependencies:
@@ -25,12 +25,11 @@ dependencies:
   - comm=0.1.2
   - contourpy=1.0.5
   - cryptography=39.0.1
-  - cuda-cudart=11.7.99
-  - cuda-cupti=11.7.101
-  - cuda-libraries=11.7.1
-  - cuda-nvrtc=11.7.99
-  - cuda-nvtx=11.7.91
-  - cuda-runtime=11.7.1
+  # CUDA 12.8 developer toolchain (provides CUB/Thrust headers via cuda-cccl)
+  - cuda-cccl=12.8.*
+  - cuda-cudart=12.8.*
+  - cuda-cudart-dev=12.8.*
+  - cuda-nvcc=12.8.*
   - cycler=0.11.0
   - dataclasses=0.8
   - dbus=1.13.18
@@ -45,7 +44,6 @@ dependencies:
   - fontconfig=2.14.1
   - fonttools=4.25.0
   - freetype=2.12.1
-  - fvcore=0.1.5.post20221221
   - giflib=5.2.1
   - glib=2.69.1
   - gmp=6.2.1
@@ -56,7 +54,6 @@ dependencies:
   - icu=58.2
   - idna=3.4
   - intel-openmp=2023.1.0
-  - iopath=0.1.9
   - ipykernel=6.19.2
   - ipython=8.12.0
   - jedi=0.18.1
@@ -78,12 +75,6 @@ dependencies:
   - libbrotlienc=1.0.9
   - libcblas=3.9.0
   - libclang=10.0.1
-  - libcublas=11.10.3.66
-  - libcufft=10.7.2.124
-  - libcufile=1.6.1.9
-  - libcurand=10.3.2.106
-  - libcusolver=11.4.0.1
-  - libcusparse=11.7.4.91
   - libdeflate=1.17
   - libedit=3.1.20191231
   - libevent=2.1.12
@@ -96,8 +87,6 @@ dependencies:
   - libidn2=2.3.4
   - liblapack=3.9.0
   - libllvm10=10.0.1
-  - libnpp=11.7.4.75
-  - libnvjpeg=11.8.0.2
   - libpng=1.6.39
   - libpq=12.9
   - libsodium=1.0.18
@@ -161,8 +150,8 @@ dependencies:
   - python=3.10.9
   - python-dateutil=2.8.2
   - python_abi=3.10
+  - pip
   # - pytorch-cuda=11.7
-  - pytorch-mutex=1.0
   - pytz=2023.3
   - pyyaml=6.0
   - pyzmq=25.0.2
@@ -205,6 +194,8 @@ dependencies:
       - cmake==4.1.0
       - frozenlist==1.7.0
       - fsspec==2025.9.0
+      - fvcore==0.1.5.post20221221
+      - iopath==0.1.9
       - glcontext==2.3.7
       - graphviz==0.8.4
       - huepy==1.2.1
