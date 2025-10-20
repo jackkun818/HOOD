@@ -208,7 +208,7 @@ dependencies:
       - multipledispatch==0.6.0
       - mxnet-mkl==1.6.0
       - ninja==1.13.0
-      - numpy==1.26.4
+      - numpy==1.23.5
       - nvidia-cublas-cu12==12.8.4.1
       - nvidia-cuda-cupti-cu12==12.8.90
       - nvidia-cuda-nvrtc-cu12==12.8.93
